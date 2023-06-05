@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net7.0</TargetFramework>
+    <PackageId>autohyper-q-core</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Util.fs" />
+    <Compile Include="RunConfiguration.fs" />
+    <Compile Include="HyperQPTL.fs" />
+    <Compile Include="GraphUtil.fs" />
+    <Compile Include="AutomataUtil.fs" />
+    <Compile Include="ModelChecking.fs" />
+    <Compile Include="ModelCheckingUtil.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FParsec" Version="1.1.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\FsOmegaLib\FsOmegaLib.fsproj" />
+  </ItemGroup>
+  <PropertyGroup>
+    <OtherFlags>$(OtherFlags) --warnon:1182</OtherFlags>
+  </PropertyGroup>
+</Project>
