@@ -78,26 +78,26 @@ module HyperQPTL =
 
         try 
             if propVars |> set |> Set.count <> List.length propVars then 
-                raise <| AnalysisException $"Some propositional variable is used more than once."
+                raise <| AutoHyperQCoreException $"Some propositional variable is used more than once."
 
             if traceVars |> set |> Set.count <> List.length traceVars then 
-                raise <| AnalysisException $"Some trace variable is used more than once."
+                raise <| AutoHyperQCoreException $"Some trace variable is used more than once."
 
             LTL.allAtoms formula.LTLMatrix
             |> Set.iter (fun x -> 
                 match x with 
                 | PropAtom q -> 
                     if List.contains q propVars |> not then 
-                        raise <| AnalysisException $"Propositional Variable %s{q} is used but not defined in the prefix"
+                        raise <| AutoHyperQCoreException $"Propositional Variable %s{q} is used but not defined in the prefix"
 
                 | TraceAtom (_, n) -> 
                     if List.contains n traceVars |> not then 
-                        raise <| AnalysisException $"Trace Variable %s{n} is used but not defined in the prefix"
+                        raise <| AutoHyperQCoreException $"Trace Variable %s{n} is used but not defined in the prefix"
                 )
             None 
         
         with 
-            | AnalysisException msg -> Some msg
+            | AutoHyperQCoreException msg -> Some msg
 
     let print (varNames : 'L -> String) (formula : HyperQPTL<'L>) =
         let strWriter = new StringWriter()

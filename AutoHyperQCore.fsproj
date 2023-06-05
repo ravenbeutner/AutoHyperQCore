@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
+    <LangVersion>6.0</LangVersion>
     <PackageId>autohyper-q-core</PackageId>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Util.fs" />
-    <Compile Include="RunConfiguration.fs" />
+    <Compile Include="SolverConfiguration.fs" />
     <Compile Include="HyperQPTL.fs" />
     <Compile Include="GraphUtil.fs" />
     <Compile Include="AutomataUtil.fs" />

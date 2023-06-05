@@ -20,26 +20,7 @@ module AutoHyperQCore.Util
 open System
 open System.Collections.Generic
 
-exception AnalysisException of String 
-
-/// If set to true, we raise exceptions which is useful for debugging. If not set, all exceptions will be caught
-let mutable DEBUG = false
-
-// If set to true, we log intermediate events
-let mutable DEBUGPrintouts = false
-
-
-let LOGGER (s : String) = 
-    if DEBUGPrintouts then 
-        printf $"%s{s}"
-    else 
-        ()
-
-let LOGGERn (s : String) = 
-    if DEBUGPrintouts then 
-        printfn $"%s{s}"
-    else 
-        ()
+exception AutoHyperQCoreException of String 
 
 let rec cartesianProduct (LL: list<seq<'a>>) =
     match LL with
@@ -61,3 +42,4 @@ let dictToMap (d : Dictionary<'A, 'B>) =
     d 
     |> Seq.map (fun x -> x.Key, x.Value)
     |> Map.ofSeq
+    

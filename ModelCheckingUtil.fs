@@ -54,15 +54,15 @@ let findErrorOnMcInstance (tsList: GNBA<int,'L> list) (formula: HyperQPTL<'L>)  
             match x with
             | TraceAtom (a, pi) ->
                 if List.contains pi traceVarList |> not then 
-                    raise <| AnalysisException $"No System defined for trace variable %s{pi}"
+                    raise <| AutoHyperQCoreException $"No System defined for trace variable %s{pi}"
                 
                 if tsList.Length = 1 then 
                     if List.contains a tsList.[0].APs |> not then
-                        raise <| AnalysisException $"AP (%A{a}, %s{pi}) is used in the HyperQPTL formula, but AP %A{a} is not defined in the system for %s{pi}."
+                        raise <| AutoHyperQCoreException $"AP (%A{a}, %s{pi}) is used in the HyperQPTL formula, but AP %A{a} is not defined in the system for %s{pi}."
                 else 
                     let index = List.findIndex ((=) pi) traceVarList
                     if List.contains a tsList.[index].APs |> not then
-                        raise <| AnalysisException $"AP (%A{a}, %s{pi}) is used in the HyperQPTL formula, but AP %A{a} is not defined in the system for %s{pi}."
+                        raise <| AutoHyperQCoreException $"AP (%A{a}, %s{pi}) is used in the HyperQPTL formula, but AP %A{a} is not defined in the system for %s{pi}."
             | PropAtom _ -> ()
         )
 

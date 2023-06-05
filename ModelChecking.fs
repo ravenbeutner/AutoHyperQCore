@@ -17,6 +17,8 @@
 
 module AutoHyperQCore.ModelChecking
 
+open System
+
 open FsOmegaLib.LTL
 open FsOmegaLib.SAT
 open FsOmegaLib.GNBA
@@ -24,16 +26,22 @@ open FsOmegaLib.NBA
 open FsOmegaLib.Operations
 
 open Util
-open RunConfiguration
+open SolverConfiguration
 open HyperQPTL
 open AutomataUtil
 
 type ModelCheckingOptions = 
     {
-        ComputeWitnesses : bool // Compute witnesses or counterexamples from outermost qunatifiers 
+        ComputeWitnesses : bool // Compute witnesses or counterexamples from outermost quantifiers 
         InitialSystemSimplification : bool
         IntermediateSimplification : bool
+
+        Logger : String -> unit // A Logger that is called with intermediate debug statements
+        RaiseExceptions : bool // If set to true, we do not catch and handle inner exceptions
     }
+
+    member this.LoggerN s = 
+        this.Logger (s + "\n")
 
 let private constructAutomatonSystemProduct (aut : GNBA<int, HyperQPTLAtom<'L>>) (ts : GNBA<int, 'L>) (index : TraceVariable) (project : bool) =
     let tsGNBA =
@@ -89,154 +97,154 @@ let rec private generateAutomatonRec (config : SolverConfiguration) (mcOptions :
         | ExistsTrace pi  -> 
             let sw = System.Diagnostics.Stopwatch()
 
-            Util.LOGGERn $"========================= \"exists %s{pi}\" ========================="
-            Util.LOGGERn $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}, System Size: %i{tsMap.[pi].States.Count}"
+            mcOptions.LoggerN $"========================= \"exists %s{pi}\" ========================="
+            mcOptions.LoggerN $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}, System Size: %i{tsMap.[pi].States.Count}"
 
             sw.Start()
             let positiveAut = 
                 if possiblyNegatedAut.IsNegated then
-                    Util.LOGGER $"Start automaton negation..."
+                    mcOptions.Logger $"Start automaton negation..."
                     // Negate
-                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AnalysisException err
+                    | Fail err -> raise <| AutoHyperQCoreException err
                 else 
                     if mcOptions.IntermediateSimplification then 
-                        Util.LOGGER $"Start automaton simplification..."
+                        mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
-                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AnalysisException err
+                        | Fail err -> raise <| AutoHyperQCoreException err
                     else 
-                        Util.LOGGER $"No automaton simplification..."
+                        mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
 
-            Util.LOGGERn $"Done. | Automaton Size: %i{positiveAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{positiveAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGER $"Start automaton-system-product..."
+            mcOptions.Logger $"Start automaton-system-product..."
             sw.Restart()
             let nextAut = constructAutomatonSystemProduct positiveAut tsMap.[pi] pi (Set.contains pi nonProjectedTraces |> not)
-            Util.LOGGERn $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGERn "=================================================="
-            Util.LOGGERn ""
+            mcOptions.LoggerN "=================================================="
+            mcOptions.LoggerN ""
 
             generateAutomatonRec config mcOptions tsMap nonProjectedTraces remainingPrefix {PossiblyNegatedAutomaton.Aut = nextAut; IsNegated = false}
             
         | ForallTrace pi -> 
             let sw = System.Diagnostics.Stopwatch()
 
-            Util.LOGGERn $"========================= \"forall %s{pi}\" ========================="
-            Util.LOGGERn $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}, System Size: %i{tsMap.[pi].States.Count}"
+            mcOptions.LoggerN $"========================= \"forall %s{pi}\" ========================="
+            mcOptions.LoggerN $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}, System Size: %i{tsMap.[pi].States.Count}"
 
             sw.Start()
             let negativeAut = 
                 if not possiblyNegatedAut.IsNegated then 
-                    Util.LOGGER $"Start automaton negation..."
+                    mcOptions.Logger $"Start automaton negation..."
                     // Negate
-                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AnalysisException err
+                    | Fail err -> raise <| AutoHyperQCoreException err
                 else 
                     if mcOptions.IntermediateSimplification then 
-                        Util.LOGGER $"Start automaton simplification..."
+                        mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
-                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AnalysisException err
+                        | Fail err -> raise <| AutoHyperQCoreException err
                     else 
-                        Util.LOGGER $"No automaton simplification..."
+                        mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
 
-            Util.LOGGERn $"Done. | Automaton Size: %i{negativeAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{negativeAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGER $"Start automaton-system-product..."
+            mcOptions.Logger $"Start automaton-system-product..."
             sw.Restart()
             let nextAut = constructAutomatonSystemProduct negativeAut tsMap.[pi] pi (Set.contains pi nonProjectedTraces |> not)
-            Util.LOGGERn $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGERn "=================================================="
-            Util.LOGGERn ""
+            mcOptions.LoggerN "=================================================="
+            mcOptions.LoggerN ""
 
             generateAutomatonRec config mcOptions tsMap nonProjectedTraces remainingPrefix {PossiblyNegatedAutomaton.Aut = nextAut; IsNegated = true}
         | ExistsProp p ->
             let sw = System.Diagnostics.Stopwatch()
 
-            Util.LOGGERn $"========================= \"E %s{p}\" ========================="
-            Util.LOGGERn $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}"
+            mcOptions.LoggerN $"========================= \"E %s{p}\" ========================="
+            mcOptions.LoggerN $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}"
 
             sw.Start()
             let positiveAut = 
                 if possiblyNegatedAut.IsNegated then
-                    Util.LOGGER $"Start automaton negation..."
+                    mcOptions.Logger $"Start automaton negation..."
                     // Negate
-                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AnalysisException err
+                    | Fail err -> raise <| AutoHyperQCoreException err
                 else 
                     if mcOptions.IntermediateSimplification then 
-                        Util.LOGGER $"Start automaton simplification..."
+                        mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
-                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AnalysisException err
+                        | Fail err -> raise <| AutoHyperQCoreException err
                     else 
-                        Util.LOGGER $"No automaton simplification..."
+                        mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
 
-            Util.LOGGERn $"Done. | Automaton Size: %i{positiveAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{positiveAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
 
-            Util.LOGGER $"Start projection..."
+            mcOptions.Logger $"Start projection..."
             sw.Restart()
             let nextAut = projectAwayAP positiveAut p
-            Util.LOGGERn $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGERn "=================================================="
-            Util.LOGGERn ""
+            mcOptions.LoggerN "=================================================="
+            mcOptions.LoggerN ""
 
             generateAutomatonRec config mcOptions tsMap nonProjectedTraces remainingPrefix {PossiblyNegatedAutomaton.Aut = nextAut; IsNegated = false}
             
         | ForallProp p ->
             let sw = System.Diagnostics.Stopwatch()
 
-            Util.LOGGERn $"========================= \"A %s{p}\" ========================="
-            Util.LOGGERn $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}"
+            mcOptions.LoggerN $"========================= \"A %s{p}\" ========================="
+            mcOptions.LoggerN $"Automaton Size: %i{possiblyNegatedAut.Aut.Skeleton.States.Count}"
 
 
             sw.Start()
             let negativeAut = 
                 if not possiblyNegatedAut.IsNegated then 
-                    Util.LOGGER $"Start automaton negation..."
+                    mcOptions.Logger $"Start automaton negation..."
                     // Negate
-                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                    match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AnalysisException err
+                    | Fail err -> raise <| AutoHyperQCoreException err
                 else 
                     if mcOptions.IntermediateSimplification then 
-                        Util.LOGGER $"Start automaton simplification..."
+                        mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
-                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
+                        match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AnalysisException err
+                        | Fail err -> raise <| AutoHyperQCoreException err
                     else 
-                        Util.LOGGER $"No automaton simplification..."
+                        mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
 
-            Util.LOGGERn $"Done. | Automaton Size: %i{negativeAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{negativeAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGER $"Start projection..."
+            mcOptions.Logger $"Start projection..."
             sw.Restart()
             let nextAut = projectAwayAP negativeAut p
-            Util.LOGGERn $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+            mcOptions.LoggerN $"Done. | Automaton Size: %i{nextAut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-            Util.LOGGERn "=================================================="
-            Util.LOGGERn ""
+            mcOptions.LoggerN "=================================================="
+            mcOptions.LoggerN ""
 
             generateAutomatonRec config mcOptions tsMap nonProjectedTraces remainingPrefix {PossiblyNegatedAutomaton.Aut = nextAut; IsNegated = true}
 
 
-let generateAutomaton (config : SolverConfiguration) mcOptions (tsmap : Map<TraceVariable, GNBA<int, 'L>>) (nonProjectedTraces: Set<TraceVariable>) (quantifierPrefix : list<HyperQPTLQuantifier>) (formula : LTL<HyperQPTLAtom<'L>>) = 
+let generateAutomaton (config : SolverConfiguration) (mcOptions: ModelCheckingOptions) (tsmap : Map<TraceVariable, GNBA<int, 'L>>) (nonProjectedTraces: Set<TraceVariable>) (quantifierPrefix : list<HyperQPTLQuantifier>) (formula : LTL<HyperQPTLAtom<'L>>) = 
     let startWithNegated =
         if List.isEmpty quantifierPrefix then 
             false 
@@ -251,20 +259,20 @@ let generateAutomaton (config : SolverConfiguration) mcOptions (tsmap : Map<Trac
         else 
             formula
 
-    Util.LOGGERn "========================= LTL-to-GNBA ========================="
-    Util.LOGGER $"Start LTL-to-GNBA translation..."
+    mcOptions.LoggerN "========================= LTL-to-GNBA ========================="
+    mcOptions.Logger $"Start LTL-to-GNBA translation..."
     let sw = System.Diagnostics.Stopwatch()
     sw.Start()
 
     let aut =
-        match FsOmegaLib.Operations.LTLConversion.convertLTLtoGNBA Util.DEBUG config.GetMainPath config.GetLtl2tgbaPath body with 
+        match FsOmegaLib.Operations.LTLConversion.convertLTLtoGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetLtl2tgbaPath body with 
         | Success aut -> aut 
-        | Fail err -> raise <| AnalysisException err 
+        | Fail err -> raise <| AutoHyperQCoreException err 
 
-    Util.LOGGERn $"Done. | Automaton Size: %i{aut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+    mcOptions.LoggerN $"Done. | Automaton Size: %i{aut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-    Util.LOGGERn "=================================================="
-    Util.LOGGERn ""
+    mcOptions.LoggerN "=================================================="
+    mcOptions.LoggerN ""
 
     generateAutomatonRec config mcOptions tsmap nonProjectedTraces quantifierPrefix {PossiblyNegatedAutomaton.Aut = aut; IsNegated = startWithNegated}
     
@@ -275,22 +283,22 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
             if mcOptions.InitialSystemSimplification then 
                 // We pass the gnba to spot to enable easy preprocessing 
 
-                Util.LOGGERn $"========================= System Simplification for \"%s{pi}\" ========================="
-                Util.LOGGERn $"Old Size: %i{gnba.Skeleton.States.Count}"
-                Util.LOGGER $"Start GNBA simplification..."
+                mcOptions.LoggerN $"========================= System Simplification for \"%s{pi}\" ========================="
+                mcOptions.LoggerN $"Old Size: %i{gnba.Skeleton.States.Count}"
+                mcOptions.Logger $"Start GNBA simplification..."
                 
                 let sw = System.Diagnostics.Stopwatch()
                 sw.Start()
 
                 let gnba' = 
-                    match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath (Effort.HIGH) gnba with
+                    match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) gnba with
                     | Success x -> x
-                    | Fail err -> raise <| AnalysisException err
+                    | Fail err -> raise <| AutoHyperQCoreException err
 
-                Util.LOGGERn $"Done. | New Size: %i{gnba'.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+                mcOptions.LoggerN $"Done. | New Size: %i{gnba'.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-                Util.LOGGERn "=================================================="
-                Util.LOGGERn ""
+                mcOptions.LoggerN "=================================================="
+                mcOptions.LoggerN ""
 
                 gnba'
             else 
@@ -334,49 +342,49 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
     if not mcOptions.ComputeWitnesses then 
         // Just check for emptiness, we use spot for this
 
-        Util.LOGGERn "========================= Emptiness Check ========================="
-        Util.LOGGER $"Automaton size: %i{aut.Skeleton.States.Count}"
-        Util.LOGGER $"Start emptiness check..."
+        mcOptions.LoggerN "========================= Emptiness Check ========================="
+        mcOptions.Logger $"Automaton size: %i{aut.Skeleton.States.Count}"
+        mcOptions.Logger $"Start emptiness check..."
         let sw = System.Diagnostics.Stopwatch()
         sw.Start()
 
         let res = 
-            match FsOmegaLib.Operations.AutomataChecks.isEmpty Util.DEBUG config.GetMainPath config.GetAutfiltPath aut with
+            match FsOmegaLib.Operations.AutomataChecks.isEmpty mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath aut with
             | Success isEmpty ->
                 if isNegated then
                     isEmpty
                 else
                     not isEmpty
-            | Fail err -> raise <| AnalysisException err
+            | Fail err -> raise <| AutoHyperQCoreException err
 
-        Util.LOGGERn $"Done. | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
-        Util.LOGGERn "=================================================="
-        Util.LOGGERn ""
+        mcOptions.LoggerN $"Done. | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+        mcOptions.LoggerN "=================================================="
+        mcOptions.LoggerN ""
 
 
         res, None
 
     else 
-        Util.LOGGERn "========================= Emptiness Check / Witness Search ========================="
-        Util.LOGGER $"Automaton size: %i{aut.Skeleton.States.Count}"
-        Util.LOGGER $"Start GNBA-to-NBA translation..."
+        mcOptions.LoggerN "========================= Emptiness Check / Witness Search ========================="
+        mcOptions.Logger $"Automaton size: %i{aut.Skeleton.States.Count}"
+        mcOptions.Logger $"Start GNBA-to-NBA translation..."
         let sw = System.Diagnostics.Stopwatch()
         sw.Start()
 
         let nba = 
-            match FsOmegaLib.Operations.AutomatonConversions.convertToNBA Util.DEBUG config.GetMainPath config.GetAutfiltPath Effort.HIGH aut with
+            match FsOmegaLib.Operations.AutomatonConversions.convertToNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath Effort.HIGH aut with
             | Success nba -> nba
-            | Fail err -> raise <| AnalysisException err
+            | Fail err -> raise <| AutoHyperQCoreException err
 
-        Util.LOGGERn $"Done. | New Size: %i{nba.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+        mcOptions.LoggerN $"Done. | New Size: %i{nba.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
-        Util.LOGGER $"Start lasso search in NBA..."
+        mcOptions.Logger $"Start lasso search in NBA..."
         sw.Restart()
         let res = AutomataUtil.shortestAcceptingPaths nba
 
-        Util.LOGGERn $"Done. | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
-        Util.LOGGERn "=================================================="
-        Util.LOGGERn ""
+        mcOptions.LoggerN $"Done. | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
+        mcOptions.LoggerN "=================================================="
+        mcOptions.LoggerN ""
 
         match res with 
         | None -> 
@@ -393,7 +401,7 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
                 |> List.map (fun lit -> 
                     let ap, pi = 
                         match nba.APs.[Literal.getValue lit] with 
-                        | PropAtom _ -> raise <| AnalysisException $"Encountered a quantified propositional AP in the lasso, should not happen!"
+                        | PropAtom _ -> raise <| AutoHyperQCoreException $"Encountered a quantified propositional AP in the lasso, should not happen!"
                         | TraceAtom (a, pi) -> a, pi
                     
                     pi, match lit with PL _ -> PL ap | NL _ -> NL ap
