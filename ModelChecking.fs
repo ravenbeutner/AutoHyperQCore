@@ -343,7 +343,7 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
         // Just check for emptiness, we use spot for this
 
         mcOptions.LoggerN "========================= Emptiness Check ========================="
-        mcOptions.Logger $"Automaton size: %i{aut.Skeleton.States.Count}"
+        mcOptions.LoggerN $"Automaton size: %i{aut.Skeleton.States.Count}"
         mcOptions.Logger $"Start emptiness check..."
         let sw = System.Diagnostics.Stopwatch()
         sw.Start()
