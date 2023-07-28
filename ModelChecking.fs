@@ -107,14 +107,18 @@ let rec private generateAutomatonRec (config : SolverConfiguration) (mcOptions :
                     // Negate
                     match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AutoHyperQCoreException err
+                    | Fail err -> 
+                        mcOptions.LoggerN err.DebugInfo
+                        raise <| AutoHyperQCoreException err.Info
                 else 
                     if mcOptions.IntermediateSimplification then 
                         mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
                         match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AutoHyperQCoreException err
+                        | Fail err -> 
+                            mcOptions.LoggerN err.DebugInfo
+                            raise <| AutoHyperQCoreException err.Info
                     else 
                         mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
@@ -144,14 +148,18 @@ let rec private generateAutomatonRec (config : SolverConfiguration) (mcOptions :
                     // Negate
                     match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AutoHyperQCoreException err
+                    | Fail err -> 
+                        mcOptions.LoggerN err.DebugInfo
+                        raise <| AutoHyperQCoreException err.Info
                 else 
                     if mcOptions.IntermediateSimplification then 
                         mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
                         match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AutoHyperQCoreException err
+                        | Fail err -> 
+                            mcOptions.LoggerN err.DebugInfo
+                            raise <| AutoHyperQCoreException err.Info
                     else 
                         mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
@@ -180,14 +188,18 @@ let rec private generateAutomatonRec (config : SolverConfiguration) (mcOptions :
                     // Negate
                     match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AutoHyperQCoreException err
+                    | Fail err -> 
+                        mcOptions.LoggerN err.DebugInfo
+                        raise <| AutoHyperQCoreException err.Info
                 else 
                     if mcOptions.IntermediateSimplification then 
                         mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
                         match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AutoHyperQCoreException err
+                        | Fail err -> 
+                            mcOptions.LoggerN err.DebugInfo
+                            raise <| AutoHyperQCoreException err.Info
                     else 
                         mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
@@ -219,14 +231,18 @@ let rec private generateAutomatonRec (config : SolverConfiguration) (mcOptions :
                     // Negate
                     match FsOmegaLib.Operations.AutomataOperations.complementToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                     | Success x -> x
-                    | Fail err -> raise <| AutoHyperQCoreException err
+                    | Fail err -> 
+                        mcOptions.LoggerN err.DebugInfo
+                        raise <| AutoHyperQCoreException err.Info
                 else 
                     if mcOptions.IntermediateSimplification then 
                         mcOptions.Logger $"Start automaton simplification..."
                         // Pass into spot (without any changes to the language) to enable easy simplication
                         match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) possiblyNegatedAut.Aut with
                         | Success x -> x
-                        | Fail err -> raise <| AutoHyperQCoreException err
+                        | Fail err -> 
+                            mcOptions.LoggerN err.DebugInfo
+                            raise <| AutoHyperQCoreException err.Info
                     else 
                         mcOptions.Logger $"No automaton simplification..."
                         possiblyNegatedAut.Aut
@@ -267,7 +283,9 @@ let generateAutomaton (config : SolverConfiguration) (mcOptions: ModelCheckingOp
     let aut =
         match FsOmegaLib.Operations.LTLConversion.convertLTLtoGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetLtl2tgbaPath body with 
         | Success aut -> aut 
-        | Fail err -> raise <| AutoHyperQCoreException err 
+        | Fail err -> 
+            mcOptions.LoggerN err.DebugInfo
+            raise <| AutoHyperQCoreException err.Info
 
     mcOptions.LoggerN $"Done. | Automaton Size: %i{aut.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
@@ -293,7 +311,9 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
                 let gnba' = 
                     match FsOmegaLib.Operations.AutomatonConversions.convertToGNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath (Effort.HIGH) gnba with
                     | Success x -> x
-                    | Fail err -> raise <| AutoHyperQCoreException err
+                    | Fail err -> 
+                        mcOptions.LoggerN err.DebugInfo
+                        raise <| AutoHyperQCoreException err.Info
 
                 mcOptions.LoggerN $"Done. | New Size: %i{gnba'.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
@@ -355,7 +375,9 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
                     isEmpty
                 else
                     not isEmpty
-            | Fail err -> raise <| AutoHyperQCoreException err
+            | Fail err -> 
+                mcOptions.LoggerN err.DebugInfo
+                raise <| AutoHyperQCoreException err.Info
 
         mcOptions.LoggerN $"Done. | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
         mcOptions.LoggerN "=================================================="
@@ -374,7 +396,9 @@ let modelCheck (config : SolverConfiguration) mcOptions (tsMap : Map<TraceVariab
         let nba = 
             match FsOmegaLib.Operations.AutomatonConversions.convertToNBA mcOptions.RaiseExceptions  config.GetMainPath config.GetAutfiltPath Effort.HIGH aut with
             | Success nba -> nba
-            | Fail err -> raise <| AutoHyperQCoreException err
+            | Fail err -> 
+                mcOptions.LoggerN err.DebugInfo
+                raise <| AutoHyperQCoreException err.Info
 
         mcOptions.LoggerN $"Done. | New Size: %i{nba.Skeleton.States.Count} | Time: %i{sw.ElapsedMilliseconds}ms (%.4f{double(sw.ElapsedMilliseconds) / 1000.0}s) |"
 
